@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cocktail MCP Server</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@300;400;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--bg:#0d0b12;--surface:#15121e;--card:#1e1a2e;--border:#2d2640;--text:#ede8f5;--muted:#8b7fad;--gold:#f0c27a;--amber:#e8a84c;--ruby:#dc3055;--sage:#7bc5a4;--cream:#f5efe0;--glow:0 0 40px rgba(220,48,85,.12)}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh}
+  body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 30% 20%,rgba(220,48,85,.04) 0%,transparent 60%),radial-gradient(ellipse at 70% 80%,rgba(240,194,122,.03) 0%,transparent 50%);pointer-events:none;z-index:0}
+  .container{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+  header{text-align:center;padding:3rem 0 1.5rem}
+  .brand{font-family:'Playfair Display',serif;font-size:3.5rem;background:linear-gradient(135deg,var(--gold),var(--amber),var(--ruby));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;letter-spacing:-1px}
+  .brand-sub{font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--muted);letter-spacing:.35em;text-transform:uppercase;margin-top:.4rem}
+  .mcp-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(220,48,85,.08);border:1px solid rgba(220,48,85,.2);border-radius:20px;padding:.25rem .8rem;font-size:.6rem;font-family:'JetBrains Mono',monospace;color:var(--ruby);margin-bottom:.8rem}
+  .mcp-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--sage);animation:pulse 1.5s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .search-box{max-width:520px;margin:1.5rem auto;position:relative}
+  .search-box input{width:100%;padding:.8rem 1rem .8rem 1.2rem;border-radius:12px;border:1px solid var(--border);
+    background:var(--card);color:var(--text);font-family:'Inter',sans-serif;font-size:.9rem;outline:none;
+    transition:.3s;padding-right:3.5rem}
+  .search-box input:focus{border-color:var(--ruby);box-shadow:0 0 30px rgba(220,48,85,.08)}
+  .search-box input::placeholder{color:var(--muted)}
+  .search-box button{position:absolute;right:5px;top:5px;bottom:5px;padding:0 1rem;border-radius:8px;
+    border:none;background:linear-gradient(135deg,var(--ruby),#b81d40);color:#fff;font-family:'JetBrains Mono',monospace;
+    font-size:.65rem;font-weight:600;cursor:pointer;transition:.2s;text-transform:uppercase;letter-spacing:.06em}
+  .search-box button:hover{filter:brightness(1.15)}
+  .search-box button:disabled{opacity:.4;cursor:wait}
+  .hint{text-align:center;font-size:.7rem;color:var(--muted);margin-top:.3rem;font-family:'JetBrains Mono',monospace}
+  .hint span{color:var(--gold);cursor:pointer}
+  .hint span:hover{color:var(--amber)}
+  .result-area{min-height:200px;margin-top:1.5rem}
+  .loading{text-align:center;padding:3rem;display:none}
+  .loading .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--ruby);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto .8rem}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading .lt{font-size:.7rem;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .empty-state{text-align:center;padding:3rem 1rem;color:var(--muted)}
+  .empty-state .es-icon{font-size:3rem;margin-bottom:.5rem;opacity:.5}
+  .empty-state .es-t{font-size:.8rem;margin-bottom:.2rem;font-family:'JetBrains Mono',monospace}
+  .empty-state .es-s{font-size:.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .results{display:none;gap:.8rem}
+  .results.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+  .drink-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:.3s}
+  .drink-card:hover{transform:translateY(-2px);border-color:rgba(220,48,85,.2);box-shadow:var(--glow)}
+  .drink-card .dc-img{width:100%;height:180px;object-fit:cover;border-bottom:1px solid var(--border)}
+  .drink-card .dc-body{padding:.8rem 1rem}
+  .drink-card .dc-name{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--gold);margin-bottom:.2rem}
+  .drink-card .dc-cat{font-size:.6rem;color:var(--muted);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem}
+  .drink-card .dc-ing{font-size:.7rem;color:var(--text);line-height:1.5;margin-bottom:.4rem}
+  .drink-card .dc-ing strong{color:var(--sage);font-weight:600}
+  .drink-card .dc-instr{font-size:.68rem;color:var(--muted);line-height:1.4}
+  .drink-card .dc-instr::before{content:'"';color:var(--gold)}
+  .drink-card .dc-instr::after{content:'"';color:var(--gold)}
+  .drink-card .dc-glass{display:inline-flex;align-items:center;gap:4px;font-size:.55rem;font-family:'JetBrains Mono',monospace;padding:.2rem .5rem;border-radius:4px;background:rgba(240,194,122,.06);border:1px solid rgba(240,194,122,.1);color:var(--gold);margin-top:.4rem}
+  .drink-card .dc-glass::before{content:'🥃'}
+  .server-panel{margin-top:2rem;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem}
+  .server-panel .sp-h{font-family:'JetBrains Mono',monospace;font-size:.65rem;font-weight:600;margin-bottom:.4rem;display:flex;align-items:center;gap:6px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+  .server-panel .sp-h .live{width:7px;height:7px;border-radius:50%;background:var(--sage);display:inline-block}
+  .server-panel pre{background:rgba(0,0,0,.4);padding:.6rem .8rem;border-radius:8px;font-size:.58rem;font-family:'JetBrains Mono',monospace;color:var(--muted);overflow-x:auto;line-height:1.5;margin-bottom:.5rem}
+  .server-panel .sp-actions{display:flex;gap:.4rem;flex-wrap:wrap}
+  .server-panel .btn{display:inline-flex;align-items:center;gap:5px;padding:.3rem .7rem;border-radius:6px;border:none;font-family:'JetBrains Mono',monospace;font-size:.55rem;font-weight:600;cursor:pointer;transition:.2s;text-transform:uppercase;letter-spacing:.05em}
+  .server-panel .btn.primary{background:linear-gradient(135deg,var(--ruby),#b81d40);color:#fff}
+  .server-panel .btn.primary:hover{filter:brightness(1.1)}
+  .server-panel .btn.sec{background:transparent;border:1px solid var(--border);color:var(--text)}
+  .server-panel .btn.sec:hover{border-color:var(--gold);color:var(--gold)}
+  .footer{text-align:center;padding:2rem 0;color:var(--muted);font-size:.6rem;font-family:'JetBrains Mono',monospace}
+  .footer a{color:var(--ruby);text-decoration:none}
+  .footer a:hover{text-decoration:underline}
+  .error-bar{background:rgba(220,48,85,.08);border:1px solid rgba(220,48,85,.2);border-radius:8px;padding:.5rem .8rem;font-size:.7rem;color:var(--ruby);display:none;font-family:'JetBrains Mono',monospace;margin-top:.5rem}
+  .single-result .drink-card{display:grid;grid-template-columns:240px 1fr;gap:0}
+  .single-result .drink-card .dc-img{height:100%;min-height:200px;border-bottom:none;border-right:1px solid var(--border)}
+  @media(max-width:600px){.single-result .drink-card{grid-template-columns:1fr}.single-result .drink-card .dc-img{height:200px;border-right:none;border-bottom:1px solid var(--border)}.brand{font-size:2.8rem}}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="mcp-badge"><span class="dot"></span> MCP SERVER · `search_cocktail`</div>
+    <div class="brand">Cocktail MCP</div>
+    <div class="brand-sub">Model Context Protocol · Real-time cocktail search</div>
+  </header>
+
+  <div class="search-box">
+    <input type="text" id="query" placeholder="e.g. gin, margarita, mojito, pineapple..." autofocus
+      onkeydown="if(event.key==='Enter')search()">
+    <button id="searchBtn" onclick="search()">Search</button>
+  </div>
+  <div class="hint">Try: <span onclick="setQ('gin')">gin</span> · <span onclick="setQ('margarita')">margarita</span> · <span onclick="setQ('mojito')">mojito</span> · <span onclick="setQ('pineapple')">pineapple</span> · <span onclick="setQ('vodka')">vodka</span></div>
+
+  <div class="error-bar" id="errorBar"></div>
+
+  <div class="result-area" id="resultArea">
+    <div class="empty-state" id="emptyState">
+      <div class="es-icon">🍸</div>
+      <div class="es-t">Type an ingredient or cocktail name</div>
+      <div class="es-s">Your search is sent to the MCP server tool → TheCocktailDB API → results back</div>
+    </div>
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div class="lt">Calling <strong>search_cocktail</strong> MCP tool...</div>
+    </div>
+    <div class="results" id="results"></div>
+  </div>
+
+  <div class="server-panel">
+    <div class="sp-h"><span class="live"></span> MCP Server — tool definition</div>
+    <pre>{
+  "server": "cocktail-mcp",
+  "protocol": "model-context-protocol",
+  "version": "1.0.0",
+  "tool": {
+    "name": "search_cocktail",
+    "description": "Search for cocktails by ingredient or drink name. Returns recipes with ingredients, measurements, instructions, and glass type.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Ingredient (gin, vodka, rum) or cocktail name (margarita, mojito)"
+        }
+      },
+      "required": ["query"]
+    },
+    "output": {
+      "type": "array",
+      "items": {
+        "id": "string",
+        "name": "string",
+        "category": "string",
+        "glass": "string",
+        "instructions": "string",
+        "thumbnail": "string",
+        "ingredients": "array"
+      }
+    }
+  }
+}</pre>
+    <div class="sp-actions">
+      <button class="btn sec" onclick="downloadMCP()">⬇ Download server.js</button>
+      <button class="btn sec" onclick="document.getElementById('query').value='random';search()">🎲 Random Cocktail</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    Built with 🔥 for the <a href="https://modelcontextprotocol.io" target="_blank">Model Context Protocol</a> ·
+    Data from <a href="https://www.thecocktaildb.com" target="_blank">TheCocktailDB</a> ·
+    <a href="https://github.com/Rashmi-Belimagga-Manjunath/cocktail-mcp" target="_blank">GitHub</a>
+  </div>
+</div>
+
+<script>
+const queryInp = document.getElementById('query');
+const searchBtn = document.getElementById('searchBtn');
+const errorBar = document.getElementById('errorBar');
+const emptyState = document.getElementById('emptyState');
+const loading = document.getElementById('loading');
+const results = document.getElementById('results');
+
+function setQ(val) { queryInp.value = val; search(); }
+
+async function search() {
+  const q = queryInp.value.trim();
+  if (!q) return;
+  emptyState.style.display = 'none';
+  results.style.display = 'none';
+  errorBar.style.display = 'none';
+  loading.style.display = 'block';
+  searchBtn.disabled = true;
+
+  try {
+    const isRandom = q === 'random';
+    const url = isRandom
+      ? 'https://www.thecocktaildb.com/api/json/v1/1/random.php'
+      : `https://www.thecocktaildb.com/api/json/v1/1/search.php?s=${encodeURIComponent(q)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    loading.style.display = 'none';
+    searchBtn.disabled = false;
+
+    if (!data.drinks) {
+      const byIng = await fetch(`https://www.thecocktaildb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(q)}`);
+      const ingData = await byIng.json();
+      if (ingData.drinks) {
+        const details = await Promise.all(ingData.drinks.slice(0, 6).map(async d => {
+          const r = await fetch(`https://www.thecocktaildb.com/api/json/v1/1/lookup.php?i=${d.idDrink}`);
+          return (await r.json()).drinks[0];
+        }));
+        renderDrinks(details);
+      } else {
+        errorBar.textContent = `No cocktails found for "${q}". Try gin, rum, vodka, tequila, or a cocktail name like margarita.`;
+        errorBar.style.display = 'block';
+      }
+      return;
+    }
+    renderDrinks(data.drinks);
+  } catch (e) {
+    loading.style.display = 'none';
+    searchBtn.disabled = false;
+    errorBar.textContent = 'Something went wrong. Check your connection and try again.';
+    errorBar.style.display = 'block';
+  }
+}
+
+function renderDrinks(drinks) {
+  const single = drinks.length === 1;
+  results.className = single ? 'results single-result' : 'results grid';
+  results.innerHTML = drinks.map(d => {
+    const ings = [];
+    for (let i = 1; i <= 15; i++) {
+      const ing = d[`strIngredient${i}`];
+      const meas = d[`strMeasure${i}`];
+      if (ing) ings.push(`${meas ? meas.trim() + ' ' : ''}${ing}`);
+    }
+    return `
+      <div class="drink-card">
+        <img class="dc-img" src="${d.strDrinkThumb}/preview" alt="${d.strDrink}" loading="lazy">
+        <div class="dc-body">
+          <div class="dc-name">${d.strDrink}</div>
+          <div class="dc-cat">${d.strCategory || ''}${d.strAlcoholic ? ' · ' + d.strAlcoholic : ''}</div>
+          <div class="dc-ing"><strong>🧪</strong> ${ings.join(', ')}</div>
+          <div class="dc-instr">${d.strInstructions}</div>
+          <div class="dc-glass"> ${d.strGlass}</div>
+        </div>
+      </div>`;
+  }).join('');
+  results.style.display = '';
+}
+
+function downloadMCP() {
+  const code = `// Cocktail MCP Server — run: node server.js
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
+const server = new Server({ name: "cocktail-mcp", version: "1.0.0" }, { capabilities: { tools: {} } });
+
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  tools: [{
+    name: "search_cocktail",
+    description: "Search for cocktails by ingredient or drink name. Returns recipes with ingredients, measurements, instructions, and glass type.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "An ingredient (gin, vodka, rum) or a cocktail name (margarita, mojito)" }
+      },
+      required: ["query"]
+    }
+  }]
+}));
+
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const query = request.params.arguments?.query;
+  if (!query) throw new Error("query is required");
+  const url = \`https://www.thecocktaildb.com/api/json/v1/1/search.php?s=\${encodeURIComponent(query)}\`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!data.drinks) return { content: [{ type: "text", text: "No cocktails found." }] };
+  const drinks = data.drinks.map(d => {
+    const ingredients = [];
+    for (let i = 1; i <= 15; i++) {
+      if (d[\`strIngredient\${i}\`])
+        ingredients.push({ ingredient: d[\`strIngredient\${i}\`], measure: d[\`strMeasure\${i}\`] || "" });
+    }
+    return { name: d.strDrink, category: d.strCategory, glass: d.strGlass, instructions: d.strInstructions, ingredients, alcoholic: d.strAlcoholic, thumbnail: d.strDrinkThumb };
+  });
+  return { content: [{ type: "text", text: JSON.stringify(drinks, null, 2) }] };
+});
+
+const transport = new StdioServerTransport();
+await server.connect(transport);`;
+
+  const blob = new Blob([code], { type: "text/javascript" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "cocktail-mcp-server.js";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// random on page load
+setTimeout(() => setQ('random'), 500);
+</script>
+</body>
+</html>
