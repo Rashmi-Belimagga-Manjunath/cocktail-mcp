@@ -3,129 +3,718 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cocktail MCP Server</title>
+<title>Cocktail MCP — Premium Cocktail Discovery</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@300;400;600&display=swap');
-  *{margin:0;padding:0;box-sizing:border-box}
-  :root{--bg:#0d0b12;--surface:#15121e;--card:rgba(20,16,30,.75);--border:rgba(255,255,255,.06);--text:#ede8f5;--muted:#8b7fad;--gold:#f0c27a;--amber:#e8a84c;--ruby:#dc3055;--sage:#7bc5a4;--cream:#f5efe0;--glow:0 0 40px rgba(220,48,85,.12)}
-  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow-x:hidden}
-  #three-canvas{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none}
-  .overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;
-    background:radial-gradient(ellipse at 50% 0%,rgba(13,11,18,0) 40%,rgba(13,11,18,.6) 80%,rgba(13,11,18,.95) 100%)}
-  .container{position:relative;z-index:2;max-width:900px;margin:0 auto;padding:2rem 1.5rem 3rem;pointer-events:none}
-  .container *{pointer-events:auto}
-  header{text-align:center;padding:2rem 0 1rem;position:relative}
-  .brand-wrap{position:relative;display:inline-block}
-  .brand{font-family:'Playfair Display',serif;font-size:4rem;background:linear-gradient(135deg,#f5efe0 20%,var(--gold) 40%,var(--amber) 60%,var(--ruby) 85%);
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;letter-spacing:-2px;position:relative;text-shadow:none;filter:drop-shadow(0 0 30px rgba(220,48,85,.2))}
-  .brand::after{content:'✦';position:absolute;top:-10px;right:-35px;font-size:1rem;color:var(--gold);-webkit-text-fill-color:var(--gold);animation:spinGlow 4s ease-in-out infinite}
-  @keyframes spinGlow{0%,100%{opacity:.4;transform:rotate(0deg) scale(1)}50%{opacity:1;transform:rotate(180deg) scale(1.2)}}
-  .brand-sub{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.4em;text-transform:uppercase;margin-top:.2rem}
-  .mcp-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(220,48,85,.08);backdrop-filter:blur(20px);
-    border:1px solid rgba(220,48,85,.15);border-radius:20px;padding:.25rem .8rem;font-size:.55rem;
-    font-family:'JetBrains Mono',monospace;color:var(--ruby);margin-bottom:.6rem;letter-spacing:.04em}
-  .mcp-badge .dot{width:5px;height:5px;border-radius:50%;background:var(--sage);animation:pulse 1.5s infinite;box-shadow:0 0 8px var(--sage)}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-  .search-box{max-width:520px;margin:1.2rem auto;position:relative}
-  .search-box input{width:100%;padding:.75rem 1rem .75rem 1.2rem;border-radius:14px;border:1px solid var(--border);
-    background:rgba(30,26,46,.7);backdrop-filter:blur(20px);color:var(--text);font-family:'Inter',sans-serif;font-size:.85rem;outline:none;
-    transition:.4s;padding-right:3.5rem}
-  .search-box input:focus{border-color:rgba(220,48,85,.3);box-shadow:0 0 40px rgba(220,48,85,.08),inset 0 0 20px rgba(220,48,85,.02)}
-  .search-box input::placeholder{color:var(--muted)}
-  .search-box button{position:absolute;right:5px;top:5px;bottom:5px;padding:0 1rem;border-radius:10px;
-    border:none;background:linear-gradient(135deg,var(--ruby),#b81d40);color:#fff;font-family:'JetBrains Mono',monospace;
-    font-size:.6rem;font-weight:600;cursor:pointer;transition:.3s;text-transform:uppercase;letter-spacing:.06em}
-  .search-box button:hover{filter:brightness(1.15);box-shadow:0 0 30px rgba(220,48,85,.2)}
-  .search-box button:disabled{opacity:.4;cursor:wait}
-  .hint{text-align:center;font-size:.65rem;color:var(--muted);margin-top:.2rem;font-family:'JetBrains Mono',monospace}
-  .hint span{color:var(--gold);cursor:pointer;transition:.2s;border-bottom:1px dashed transparent}
-  .hint span:hover{color:var(--amber);border-bottom-color:var(--amber)}
-  .result-area{min-height:200px;margin-top:1rem}
-  .loading{text-align:center;padding:2rem;display:none}
-  .loading .spinner{width:32px;height:32px;border:2px solid rgba(255,255,255,.04);border-top-color:var(--ruby);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto .5rem}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .loading .lt{font-size:.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace}
-  .empty-state{text-align:center;padding:2rem 1rem;color:var(--muted)}
-  .empty-state .es-icon{font-size:2.5rem;margin-bottom:.3rem;opacity:.4}
-  .empty-state .es-t{font-size:.75rem;margin-bottom:.1rem;font-family:'JetBrains Mono',monospace;color:var(--muted)}
-  .empty-state .es-s{font-size:.6rem;color:var(--muted);font-family:'JetBrains Mono',monospace;opacity:.6}
-  .results{display:none;gap:.7rem}
-  .results.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
-  .drink-card{background:rgba(20,16,30,.6);backdrop-filter:blur(20px);border:1px solid var(--border);
-    border-radius:14px;overflow:hidden;transition:.4s;box-shadow:0 4px 30px rgba(0,0,0,.2)}
-  .drink-card:hover{transform:translateY(-3px);border-color:rgba(220,48,85,.15);box-shadow:0 8px 40px rgba(220,48,85,.06)}
-  .drink-card .dc-img{width:100%;height:170px;object-fit:cover;border-bottom:1px solid var(--border)}
-  .drink-card .dc-body{padding:.7rem .9rem}
-  .drink-card .dc-name{font-family:'Playfair Display',serif;font-size:1rem;background:linear-gradient(135deg,var(--gold),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.15rem}
-  .drink-card .dc-cat{font-size:.55rem;color:var(--muted);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem}
-  .drink-card .dc-ing{font-size:.65rem;color:var(--text);line-height:1.5;margin-bottom:.3rem}
-  .drink-card .dc-ing strong{color:var(--sage);font-weight:600}
-  .drink-card .dc-instr{font-size:.62rem;color:var(--muted);line-height:1.4;font-style:italic}
-  .drink-card .dc-instr::before{content:'\201C';color:var(--gold)}
-  .drink-card .dc-instr::after{content:'\201D';color:var(--gold)}
-  .drink-card .dc-glass{display:inline-flex;align-items:center;gap:3px;font-size:.5rem;font-family:'JetBrains Mono',monospace;padding:.18rem .45rem;border-radius:4px;background:rgba(240,194,122,.05);border:1px solid rgba(240,194,122,.08);color:var(--gold);margin-top:.3rem}
-  .drink-card .dc-glass::before{content:'\1F943'}
-  .server-panel{margin-top:1.5rem;background:rgba(20,16,30,.5);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:14px;padding:.9rem 1rem}
-  .server-panel .sp-h{font-family:'JetBrains Mono',monospace;font-size:.6rem;font-weight:600;margin-bottom:.35rem;display:flex;align-items:center;gap:6px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
-  .server-panel .sp-h .live{width:6px;height:6px;border-radius:50%;background:var(--sage);display:inline-block;animation:pulse 1.5s infinite;box-shadow:0 0 6px var(--sage)}
-  .server-panel pre{background:rgba(0,0,0,.35);padding:.5rem .7rem;border-radius:8px;font-size:.52rem;font-family:'JetBrains Mono',monospace;color:var(--muted);overflow-x:auto;line-height:1.4;margin-bottom:.4rem}
-  .server-panel .sp-actions{display:flex;gap:.35rem;flex-wrap:wrap}
-  .server-panel .btn{display:inline-flex;align-items:center;gap:4px;padding:.25rem .6rem;border-radius:6px;border:none;font-family:'JetBrains Mono',monospace;font-size:.5rem;font-weight:600;cursor:pointer;transition:.2s;text-transform:uppercase;letter-spacing:.05em}
-  .server-panel .btn.primary{background:linear-gradient(135deg,var(--ruby),#b81d40);color:#fff}
-  .server-panel .btn.primary:hover{filter:brightness(1.1)}
-  .server-panel .btn.sec{background:rgba(255,255,255,.02);backdrop-filter:blur(10px);border:1px solid var(--border);color:var(--text)}
-  .server-panel .btn.sec:hover{border-color:rgba(240,194,122,.2);color:var(--gold)}
-  .footer{text-align:center;padding:1.5rem 0 0;color:var(--muted);font-size:.55rem;font-family:'JetBrains Mono',monospace}
-  .footer a{color:var(--ruby);text-decoration:none;transition:.2s}
-  .footer a:hover{color:var(--gold)}
-  .error-bar{background:rgba(220,48,85,.06);border:1px solid rgba(220,48,85,.12);border-radius:8px;padding:.45rem .7rem;font-size:.65rem;color:var(--ruby);display:none;font-family:'JetBrains Mono',monospace;margin-top:.4rem}
-  .single-result .drink-card{display:grid;grid-template-columns:220px 1fr;gap:0}
-  .single-result .drink-card .dc-img{height:100%;min-height:180px;border-bottom:none;border-right:1px solid var(--border)}
-  @media(max-width:600px){.brand{font-size:3rem}.single-result .drink-card{grid-template-columns:1fr}.single-result .drink-card .dc-img{height:180px;border-right:none;border-bottom:1px solid var(--border)}.container{padding:1.5rem 1rem}}
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --white: #ffffff;
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --text: #1a1a1a;
+    --text-secondary: #555555;
+    --muted: #999999;
+    --gold: #b8994a;
+    --gold-light: #d4bc7a;
+    --gold-dim: rgba(184, 153, 74, 0.08);
+    --gold-glow: rgba(184, 153, 74, 0.06);
+    --nav-bg: #1a1a1a;
+    --nav-text: #cccccc;
+    --border: #e8e5e0;
+    --border-light: #f0eee8;
+    --card-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    --card-shadow-hover: 0 12px 40px rgba(0,0,0,0.06);
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --font-display: 'Playfair Display', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --max-width: 1100px;
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #ddd; border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: #bbb; }
+
+  a { color: var(--gold); text-decoration: none; transition: 0.25s; }
+  a:hover { color: #a08030; }
+
+  /* ── Top Bar ── */
+  .top-bar {
+    background: var(--nav-bg);
+    color: var(--nav-text);
+    font-size: 0.75rem;
+    padding: 0.5rem 0;
+    font-weight: 300;
+  }
+  .top-bar .inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .top-bar a { color: var(--gold-light); font-weight: 400; }
+  .top-bar a:hover { color: #fff; }
+  .top-bar .tb-left { display: flex; gap: 1.5rem; align-items: center; }
+
+  /* ── Header / Nav ── */
+  .site-header {
+    background: var(--white);
+    border-bottom: 1px solid var(--border-light);
+    padding: 1rem 0;
+  }
+  .site-header .inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-icon {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+  }
+  .logo-text {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+  .logo-text span { color: var(--gold); }
+
+  .site-nav {
+    display: flex;
+    gap: 1.8rem;
+    align-items: center;
+  }
+  .site-nav a {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: 0.25s;
+    position: relative;
+    padding-bottom: 2px;
+  }
+  .site-nav a::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--gold);
+    transition: 0.3s;
+  }
+  .site-nav a:hover { color: var(--text); }
+  .site-nav a:hover::after { width: 100%; }
+  .site-nav .nav-btn {
+    background: none;
+    border: 2px solid var(--gold);
+    color: var(--gold);
+    padding: 0.35rem 1rem;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  .site-nav .nav-btn:hover {
+    background: var(--gold);
+    color: #fff;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 2.5rem 2rem 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+  }
+  .hero-left { max-width: 520px; }
+  .hero-label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero-label .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    display: inline-block;
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: 3.2rem;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--text);
+    margin-bottom: 0.8rem;
+    letter-spacing: -1px;
+  }
+  .hero h1 .gold { color: var(--gold); }
+  .hero p {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+    font-weight: 300;
+    max-width: 440px;
+  }
+
+  /* ── Search ── */
+  .search-wrap {
+    display: flex;
+    gap: 0;
+    max-width: 480px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.03);
+    transition: 0.3s;
+  }
+  .search-wrap:focus-within {
+    border-color: var(--gold);
+    box-shadow: 0 2px 24px var(--gold-glow);
+  }
+  .search-wrap input {
+    flex: 1;
+    padding: 0.85rem 1.2rem;
+    border: none;
+    outline: none;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: var(--text);
+    background: transparent;
+  }
+  .search-wrap input::placeholder { color: var(--muted); font-weight: 300; }
+  .search-wrap button {
+    padding: 0 1.4rem;
+    border: none;
+    background: var(--gold);
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+    letter-spacing: 0.02em;
+  }
+  .search-wrap button:hover { background: #a08030; }
+  .search-wrap button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .hero-hints {
+    margin-top: 0.6rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .hero-hints span {
+    color: var(--gold);
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.2s;
+  }
+  .hero-hints span:hover { color: #a08030; }
+
+  /* ── Hero Right (3D Glass) ── */
+  .hero-right {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 340px;
+  }
+  #hero-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: var(--radius-lg);
+  }
+
+  /* ── Section Headers ── */
+  .section-h {
+    max-width: var(--max-width);
+    margin: 1.5rem auto 0;
+    padding: 0 2rem;
+  }
+  .section-h h2 {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .section-h p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 300;
+    margin-top: 0.15rem;
+  }
+  .section-h .h-line {
+    width: 40px;
+    height: 3px;
+    background: var(--gold);
+    margin: 0.6rem 0 0.3rem;
+    border-radius: 4px;
+  }
+
+  /* ── Results ── */
+  .result-area {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 2rem 2rem;
+    min-height: 140px;
+  }
+  .loading {
+    text-align: center;
+    padding: 3rem;
+    display: none;
+  }
+  .loading .spinner {
+    display: inline-block;
+    width: 28px; height: 28px;
+    border: 3px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading .lt {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.6rem;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+  }
+  .empty-state .es-icon {
+    font-size: 2.4rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+  }
+  .empty-state .es-t {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+  }
+  .error-bar {
+    display: none;
+    background: #fef6f6;
+    border: 1px solid #f0d0d0;
+    color: #b33;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    margin-bottom: 1rem;
+  }
+  .results { display: none; }
+  .results.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.2rem;
+  }
+  .results.single-result { display: block; }
+  .results.single-result .drink-card {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+  }
+
+  /* ── Drink Card ── */
+  .drink-card {
+    background: var(--white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: var(--card-shadow);
+    animation: cardIn 0.5s ease both;
+  }
+  .drink-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: var(--gold-dim);
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .drink-card:nth-child(1) { animation-delay: 0.04s; }
+  .drink-card:nth-child(2) { animation-delay: 0.08s; }
+  .drink-card:nth-child(3) { animation-delay: 0.12s; }
+  .drink-card:nth-child(4) { animation-delay: 0.16s; }
+  .drink-card:nth-child(5) { animation-delay: 0.2s; }
+  .drink-card:nth-child(6) { animation-delay: 0.24s; }
+
+  .drink-card .dc-img-wrap {
+    height: 190px;
+    overflow: hidden;
+    position: relative;
+  }
+  .drink-card .dc-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .drink-card:hover .dc-img { transform: scale(1.04); }
+  .drink-card .dc-body {
+    padding: 0.9rem 1rem 1rem;
+  }
+  .drink-card .dc-name {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.1rem;
+    line-height: 1.2;
+  }
+  .drink-card .dc-cat {
+    font-size: 0.65rem;
+    color: var(--muted);
+    font-weight: 400;
+    margin-bottom: 0.35rem;
+  }
+  .drink-card .dc-ing {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 0.3rem;
+    font-weight: 300;
+  }
+  .drink-card .dc-ing strong { color: var(--gold); font-weight: 500; }
+  .drink-card .dc-instr {
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.5;
+    font-style: italic;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-weight: 300;
+  }
+  .drink-card .dc-instr::before { content: '\201C'; color: var(--gold); }
+  .drink-card .dc-instr::after { content: '\201D'; color: var(--gold); }
+  .drink-card .dc-foot {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-light);
+  }
+  .drink-card .dc-glass {
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .drink-card .dc-glass::before { content: '\1F943'; font-size: 0.75rem; }
+
+  .single-result .drink-card .dc-img-wrap { height: 100%; min-height: 220px; }
+
+  /* ── Server Panel ── */
+  .server-section {
+    background: var(--white);
+    border-top: 1px solid var(--border-light);
+    padding: 2.5rem 2rem;
+    margin-top: 0.5rem;
+  }
+  .server-section .inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+  }
+  .server-section .sp-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  .server-section .sp-info h3 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+  .server-section .sp-info p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    margin-bottom: 1rem;
+  }
+  .server-section .sp-info .btn-group {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .server-section .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.5rem 1.2rem;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.25s;
+  }
+  .server-section .btn.primary {
+    background: var(--gold);
+    color: #fff;
+  }
+  .server-section .btn.primary:hover { background: #a08030; }
+  .server-section .btn.sec {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .server-section .btn.sec:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .server-section pre {
+    background: #fafafa;
+    border: 1px solid var(--border-light);
+    padding: 1rem 1.2rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.68rem;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    overflow-x: auto;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  .server-section .pre-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+  .server-section .pre-header span {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .server-section .pre-header .live {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    display: inline-block;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.7); }
+  }
+
+  /* ── Footer ── */
+  .site-footer {
+    background: var(--nav-bg);
+    color: var(--nav-text);
+    padding: 2rem 2rem 1.5rem;
+    font-size: 0.78rem;
+    font-weight: 300;
+  }
+  .site-footer .inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .site-footer .footer-links {
+    display: flex;
+    gap: 1.5rem;
+  }
+  .site-footer a { color: var(--gold-light); }
+  .site-footer a:hover { color: #fff; }
+
+  /* ── Responsive ── */
+  @media (max-width: 820px) {
+    .hero { grid-template-columns: 1fr; gap: 1.5rem; padding: 1.5rem 1.5rem 1rem; }
+    .hero-left { max-width: 100%; }
+    .hero h1 { font-size: 2.4rem; }
+    .hero-right { height: 220px; }
+    .server-section .sp-grid { grid-template-columns: 1fr; }
+    .top-bar .inner { padding: 0 1.5rem; font-size: 0.65rem; flex-wrap: wrap; gap: 0.3rem; }
+    .site-header .inner { padding: 0 1.5rem; flex-wrap: wrap; gap: 0.5rem; }
+    .site-nav { gap: 1rem; }
+    .site-nav a { font-size: 0.75rem; }
+    .results.grid { grid-template-columns: 1fr; }
+    .single-result .drink-card { grid-template-columns: 1fr; }
+    .section-h { padding: 0 1.5rem; }
+    .result-area { padding: 0 1.5rem 1.5rem; }
+    .server-section { padding: 1.5rem; }
+    .site-footer .inner { flex-direction: column; text-align: center; }
+  }
+  @media (max-width: 480px) {
+    .hero h1 { font-size: 1.8rem; }
+    .hero-right { height: 160px; }
+    .logo-text { font-size: 1.1rem; }
+    .site-nav .nav-btn { display: none; }
+    .search-wrap input { font-size: 0.82rem; padding: 0.7rem 0.9rem; }
+    .search-wrap button { padding: 0 1rem; font-size: 0.75rem; }
+  }
 </style>
 </head>
 <body>
-<canvas id="three-canvas"></canvas>
-<div class="overlay"></div>
 
-<div class="container">
-  <header>
-    <div class="mcp-badge"><span class="dot"></span> MCP SERVER · <span style="color:var(--muted)">search_cocktail</span></div>
-    <div class="brand-wrap"><div class="brand">Cocktail MCP</div></div>
-    <div class="brand-sub">Model Context Protocol · Real-time cocktail search</div>
-  </header>
-
-  <div class="search-box">
-    <input type="text" id="query" placeholder="e.g. gin, margarita, mojito, pineapple..." autofocus onkeydown="if(event.key==='Enter')search()">
-    <button id="searchBtn" onclick="search()">Search</button>
-  </div>
-  <div class="hint">Try: <span onclick="setQ('gin')">gin</span> · <span onclick="setQ('margarita')">margarita</span> · <span onclick="setQ('mojito')">mojito</span> · <span onclick="setQ('pineapple')">pineapple</span> · <span onclick="setQ('vodka')">vodka</span></div>
-
-  <div class="error-bar" id="errorBar"></div>
-
-  <div class="result-area" id="resultArea">
-    <div class="empty-state" id="emptyState">
-      <div class="es-icon">🍸</div>
-      <div class="es-t">Type an ingredient or cocktail name</div>
-      <div class="es-s">Your search hits the MCP tool → TheCocktailDB API → results back</div>
+<!-- Top Bar -->
+<div class="top-bar">
+  <div class="inner">
+    <div class="tb-left">
+      <span>✦ Cocktail MCP</span>
+      <span style="opacity:0.3">|</span>
+      <span>Model Context Protocol · v1.0</span>
     </div>
-    <div class="loading" id="loading">
-      <div class="spinner"></div>
-      <div class="lt">Calling <strong>search_cocktail</strong> MCP tool...</div>
+    <div>
+      <a href="https://github.com/Rashmi-Belimagga-Manjunath/cocktail-mcp" target="_blank">GitHub</a>
+      <span style="opacity:0.3;margin:0 0.6rem">·</span>
+      <a href="https://www.thecocktaildb.com" target="_blank">TheCocktailDB</a>
+      <span style="opacity:0.3;margin:0 0.6rem">·</span>
+      <a href="https://modelcontextprotocol.io" target="_blank">MCP Protocol</a>
     </div>
-    <div class="results" id="results"></div>
   </div>
+</div>
 
-  <div class="server-panel">
-    <div class="sp-h"><span class="live"></span> MCP Server — tool definition</div>
-    <pre>{
+<!-- Header -->
+<header class="site-header">
+  <div class="inner">
+    <div class="logo">
+      <div class="logo-icon">🍸</div>
+      <div class="logo-text">Cocktail <span>MCP</span></div>
+    </div>
+    <nav class="site-nav">
+      <a href="#results">Cocktails</a>
+      <a href="#server">Server</a>
+      <a href="https://github.com/Rashmi-Belimagga-Manjunath/cocktail-mcp" target="_blank">GitHub</a>
+      <button class="nav-btn" onclick="document.getElementById('query').value='';document.getElementById('query').focus()">Search</button>
+    </nav>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-label"><span class="dot"></span> Premium Cocktail Discovery</div>
+    <h1>Discover <span class="gold">exceptional</span> cocktails from around the world</h1>
+    <p>Search by ingredient, spirit, or cocktail name. Powered by TheCocktailDB and served through the Model Context Protocol.</p>
+    <div class="search-wrap">
+      <input type="text" id="query" placeholder="Search by ingredient or cocktail name..." autofocus onkeydown="if(event.key==='Enter')search()">
+      <button id="searchBtn" onclick="search()">Search</button>
+    </div>
+    <div class="hero-hints">
+      Try: <span onclick="setQ('gin')">Gin</span> ·
+      <span onclick="setQ('margarita')">Margarita</span> ·
+      <span onclick="setQ('mojito')">Mojito</span> ·
+      <span onclick="setQ('vodka')">Vodka</span> ·
+      <span onclick="setQ('rum')">Rum</span>
+    </div>
+  </div>
+  <div class="hero-right">
+    <canvas id="hero-canvas"></canvas>
+  </div>
+</section>
+
+<div class="section-h" id="results">
+  <div class="h-line"></div>
+  <h2>Results</h2>
+  <p>Real-time cocktail recipes from the API</p>
+</div>
+
+<div class="error-bar" id="errorBar"></div>
+
+<div class="result-area" id="resultArea">
+  <div class="empty-state" id="emptyState">
+    <div class="es-icon">🍸</div>
+    <div class="es-t">Enter a search above to discover cocktails</div>
+  </div>
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="lt">Searching cocktails...</div>
+  </div>
+  <div class="results" id="results"></div>
+</div>
+
+<!-- Server Section -->
+<section class="server-section" id="server">
+  <div class="inner">
+    <div class="sp-grid">
+      <div class="sp-info">
+        <h3>MCP Server Definition</h3>
+        <p>The <code style="color:var(--gold)">search_cocktail</code> tool is defined using the Model Context Protocol specification. Download the server to integrate cocktail search into any MCP-compatible client.</p>
+        <div class="btn-group">
+          <button class="btn primary" onclick="downloadMCP()">⬇ Download server.js</button>
+          <button class="btn sec" onclick="document.getElementById('query').value='random';search()">🎲 Random Cocktail</button>
+        </div>
+      </div>
+      <div>
+        <div class="pre-header">
+          <span><span class="live"></span> cocktail-mcp · tool definition</span>
+          <span style="color:var(--muted);font-size:0.6rem">JSON</span>
+        </div>
+        <pre>{
   "server": "cocktail-mcp",
   "protocol": "model-context-protocol",
   "version": "1.0.0",
   "tool": {
     "name": "search_cocktail",
-    "description": "Search cocktails by ingredient or name. Returns recipes.",
+    "description": "Search cocktails by ingredient or name. Returns recipes with ingredients, measures, and instructions.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -135,431 +724,295 @@
     }
   }
 }</pre>
-    <div class="sp-actions">
-      <button class="btn sec" onclick="downloadMCP()">⬇ Download server.js</button>
-      <button class="btn sec" onclick="document.getElementById('query').value='random';search()">🎲 Random</button>
+      </div>
     </div>
   </div>
+</section>
 
-  <div class="footer">
-    <a href="https://modelcontextprotocol.io" target="_blank">Model Context Protocol</a> · <a href="https://www.thecocktaildb.com" target="_blank">TheCocktailDB</a> · <a href="https://github.com/Rashmi-Belimagga-Manjunath/cocktail-mcp" target="_blank">GitHub</a>
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="inner">
+    <div>Cocktail MCP &copy; 2026</div>
+    <div class="footer-links">
+      <a href="https://modelcontextprotocol.io" target="_blank">Model Context Protocol</a>
+      <a href="https://www.thecocktaildb.com" target="_blank">TheCocktailDB</a>
+      <a href="https://github.com/Rashmi-Belimagga-Manjunath/cocktail-mcp" target="_blank">GitHub</a>
+    </div>
   </div>
-</div>
+</footer>
 
 <script>
-// ── Three.js 3D Scene ──
-const canvas = document.getElementById('three-canvas');
+// ── Three.js Hero Scene ──
+const canvas = document.getElementById('hero-canvas');
+const rect = canvas.parentElement.getBoundingClientRect();
+const w = rect.width, h = rect.height;
+canvas.width = w; canvas.height = h;
+
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 0.5, 6);
+const camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
+camera.position.set(0, 0.3, 4.5);
 
 const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(w, h);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+renderer.toneMappingExposure = 1.0;
+renderer.setClearColor(0xf8f7f4, 1);
 
-// ── Lights ──
-const ambient = new THREE.AmbientLight(0x222244, 0.3);
+// Lights
+const ambient = new THREE.AmbientLight(0x888899, 0.4);
 scene.add(ambient);
-const keyLight = new THREE.DirectionalLight(0xff8866, 1.2);
+const keyLight = new THREE.DirectionalLight(0xffddaa, 1.0);
 keyLight.position.set(2, 4, 3);
 scene.add(keyLight);
-const fillLight = new THREE.DirectionalLight(0x6644ff, 0.6);
+const fillLight = new THREE.DirectionalLight(0x8899ff, 0.4);
 fillLight.position.set(-3, 1, 2);
 scene.add(fillLight);
-const rimLight = new THREE.DirectionalLight(0x44ddff, 0.5);
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
 rimLight.position.set(0, -2, -3);
 scene.add(rimLight);
-const topLight = new THREE.PointLight(0xff4488, 0.3, 8);
-topLight.position.set(0, 3, 0);
-scene.add(topLight);
 
-// ── Cocktail Glass ──
 const glassGroup = new THREE.Group();
+const seg = 24;
+const rr = 0.55;
+const bd = 0.75;
+const sh = 0.75;
+const sr = 0.05;
+const br = 0.38;
+const bh = 0.05;
 
-// Glass bowl (using lathe geometry for elegant curve)
-const glassPoints = [];
-const segments = 24;
-const height = 1.8;
-const rimRadius = 0.65;
-const bowlDepth = 0.9;
-const stemHeight = 0.9;
-const stemRadius = 0.06;
-const baseRadius = 0.45;
-const baseHeight = 0.06;
-
-// Bowl profile (from rim down to stem)
+const pts = [];
 for (let i = 0; i <= 20; i++) {
-  const t = i / 20;
-  const angle = t * Math.PI * 0.45;
-  const r = rimRadius - Math.sin(angle) * rimRadius * 0.85;
-  const y = -t * bowlDepth;
-  if (r > 0.01) glassPoints.push(new THREE.Vector2(r, y));
+  const t = i / 20, a = t * Math.PI * 0.45, r = rr - Math.sin(a) * rr * 0.85, y = -t * bd;
+  if (r > 0.01) pts.push(new THREE.Vector2(r, y));
 }
-// Stem
-glassPoints.push(new THREE.Vector2(stemRadius * 1.5, -bowlDepth));
-glassPoints.push(new THREE.Vector2(stemRadius, -bowlDepth));
-glassPoints.push(new THREE.Vector2(stemRadius, -bowlDepth - stemHeight));
-// Base
-glassPoints.push(new THREE.Vector2(stemRadius, -bowlDepth - stemHeight));
-glassPoints.push(new THREE.Vector2(baseRadius, -bowlDepth - stemHeight));
-glassPoints.push(new THREE.Vector2(baseRadius, -bowlDepth - stemHeight - baseHeight));
-glassPoints.push(new THREE.Vector2(0, -bowlDepth - stemHeight - baseHeight));
+pts.push(new THREE.Vector2(sr * 1.5, -bd), new THREE.Vector2(sr, -bd), new THREE.Vector2(sr, -bd - sh));
+pts.push(new THREE.Vector2(sr, -bd - sh), new THREE.Vector2(br, -bd - sh), new THREE.Vector2(br, -bd - sh - bh), new THREE.Vector2(0, -bd - sh - bh));
 
-const glassGeom = new THREE.LatheGeometry(glassPoints, segments);
+const glassGeom = new THREE.LatheGeometry(pts, seg);
 const glassMat = new THREE.MeshPhysicalMaterial({
-  color: 0x88ccff,
-  metalness: 0.0,
-  roughness: 0.05,
-  transparent: true,
-  opacity: 0.35,
-  envMapIntensity: 1.0,
-  clearcoat: 1.0,
-  clearcoatRoughness: 0.1,
-  side: THREE.DoubleSide,
-  depthWrite: false
+  color: 0xccddee, metalness: 0.0, roughness: 0.04, transparent: true, opacity: 0.25,
+  envMapIntensity: 0.8, clearcoat: 0.6, clearcoatRoughness: 0.15, side: THREE.DoubleSide, depthWrite: false
 });
 const glassMesh = new THREE.Mesh(glassGeom, glassMat);
 glassGroup.add(glassMesh);
 
-// Rim ring for glass edge glow
-const rimGeom = new THREE.TorusGeometry(rimRadius, 0.015, 8, 32);
-const rimMat = new THREE.MeshPhysicalMaterial({
-  color: 0xaaddff,
-  metalness: 0.3,
-  roughness: 0.1,
-  transparent: true,
-  opacity: 0.6
-});
-const rimRing = new THREE.Mesh(rimGeom, rimMat);
-rimRing.position.y = 0.01;
-glassGroup.add(rimRing);
+const rimGeom = new THREE.TorusGeometry(rr, 0.012, 8, 32);
+const rimMat = new THREE.MeshPhysicalMaterial({ color: 0xbbccdd, metalness: 0.2, roughness: 0.15, transparent: true, opacity: 0.4 });
+const ring = new THREE.Mesh(rimGeom, rimMat);
+ring.position.y = 0.01;
+glassGroup.add(ring);
 
-// Inner liquid
-const liquidGeom = new THREE.CylinderGeometry(rimRadius * 0.88, rimRadius * 0.55, bowlDepth * 0.7, 24);
+const liquidGeom = new THREE.CylinderGeometry(rr * 0.88, rr * 0.55, bd * 0.7, 24);
 const liquidMat = new THREE.MeshPhysicalMaterial({
-  color: 0xff6b4a,
-  metalness: 0.0,
-  roughness: 0.05,
-  transparent: true,
-  opacity: 0.6,
-  emissive: 0xff4411,
-  emissiveIntensity: 0.05,
+  color: 0xe8a84c, metalness: 0.0, roughness: 0.05, transparent: true, opacity: 0.55, emissive: 0xdda040, emissiveIntensity: 0.03
 });
 const liquid = new THREE.Mesh(liquidGeom, liquidMat);
-liquid.position.y = -bowlDepth * 0.35;
+liquid.position.y = -bd * 0.35;
 glassGroup.add(liquid);
 
-// Liquid surface disc (for meniscus effect)
-const surfGeom = new THREE.CircleGeometry(rimRadius * 0.88, 24);
-const surfMat = new THREE.MeshPhysicalMaterial({
-  color: 0xff7744,
-  metalness: 0.0,
-  roughness: 0.0,
-  transparent: true,
-  opacity: 0.25,
-  side: THREE.DoubleSide
-});
+const surfGeom = new THREE.CircleGeometry(rr * 0.88, 24);
+const surfMat = new THREE.MeshPhysicalMaterial({ color: 0xddbb66, metalness: 0.0, roughness: 0.0, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
 const surface = new THREE.Mesh(surfGeom, surfMat);
 surface.rotation.x = -Math.PI / 2;
-surface.position.y = -bowlDepth * 0.05;
+surface.position.y = -bd * 0.05;
 glassGroup.add(surface);
 
-// Garnish: lime slice on rim
 const limeGroup = new THREE.Group();
-const limeGeom = new THREE.CircleGeometry(0.12, 12);
-const limeMat = new THREE.MeshPhysicalMaterial({
-  color: 0x88dd44,
-  roughness: 0.3,
-  metalness: 0.0,
-  side: THREE.DoubleSide
-});
+const limeGeom = new THREE.CircleGeometry(0.1, 12);
+const limeMat = new THREE.MeshPhysicalMaterial({ color: 0x88dd44, roughness: 0.3, metalness: 0.0, side: THREE.DoubleSide });
 const lime = new THREE.Mesh(limeGeom, limeMat);
 lime.rotation.x = 0.3;
-lime.position.set(rimRadius * 0.7, 0.1, rimRadius * 0.5);
+lime.position.set(rr * 0.7, 0.08, rr * 0.5);
 limeGroup.add(lime);
-const rindGeom = new THREE.RingGeometry(0.12, 0.14, 12);
-const rindMat = new THREE.MeshPhysicalMaterial({
-  color: 0x66aa22,
-  roughness: 0.4,
-  side: THREE.DoubleSide
-});
+const rindGeom = new THREE.RingGeometry(0.1, 0.12, 12);
+const rindMat = new THREE.MeshPhysicalMaterial({ color: 0x66aa22, roughness: 0.4, side: THREE.DoubleSide });
 const rind = new THREE.Mesh(rindGeom, rindMat);
 rind.rotation.x = 0.3;
 rind.position.copy(lime.position);
 limeGroup.add(rind);
 glassGroup.add(limeGroup);
 
-// Ice cubes
-for (let i = 0; i < 4; i++) {
-  const s = 0.04 + Math.random() * 0.04;
-  const iceGeom = new THREE.BoxGeometry(s, s * 0.8, s);
-  const iceMat = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    metalness: 0.0,
-    roughness: 0.05,
-    transparent: true,
-    opacity: 0.25,
-    clearcoat: 0.3
-  });
-  const ice = new THREE.Mesh(iceGeom, iceMat);
-  ice.position.set(
-    (Math.random() - 0.5) * rimRadius * 0.8,
-    -bowlDepth * 0.3 + Math.random() * 0.15,
-    (Math.random() - 0.5) * rimRadius * 0.8
-  );
+for (let i = 0; i < 3; i++) {
+  const s = 0.03 + Math.random() * 0.035;
+  const g = new THREE.BoxGeometry(s, s * 0.8, s);
+  const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.0, roughness: 0.05, transparent: true, opacity: 0.2, clearcoat: 0.3 });
+  const ice = new THREE.Mesh(g, m);
+  ice.position.set((Math.random() - 0.5) * rr * 0.8, -bd * 0.3 + Math.random() * 0.15, (Math.random() - 0.5) * rr * 0.8);
   ice.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
   glassGroup.add(ice);
 }
-
-glassGroup.position.y = 0.2;
+glassGroup.position.y = 0.15;
+glassGroup.scale.set(0.85, 0.85, 0.85);
 scene.add(glassGroup);
 
-// ── Bubbles ──
-const bubbleCount = 40;
+// Bubbles
 const bubbles = [];
-const bubbleMat = new THREE.MeshPhysicalMaterial({
-  color: 0xffffff,
-  metalness: 0.0,
-  roughness: 0.0,
-  transparent: true,
-  opacity: 0.15
-});
-for (let i = 0; i < bubbleCount; i++) {
-  const s = 0.01 + Math.random() * 0.04;
+for (let i = 0; i < 20; i++) {
+  const s = 0.008 + Math.random() * 0.03;
   const g = new THREE.SphereGeometry(s, 8, 8);
-  const m = new THREE.Mesh(g, bubbleMat.clone());
-  m.position.set(
-    (Math.random() - 0.5) * 2.5,
-    (Math.random() - 0.5) * 3.5 - 0.5,
-    (Math.random() - 0.5) * 2.5 - 0.3
-  );
-  m.userData = {
-    vy: 0.001 + Math.random() * 0.005,
-    vx: (Math.random() - 0.5) * 0.002,
-    phase: Math.random() * Math.PI * 2,
-    startY: m.position.y
-  };
+  const m = new THREE.Mesh(g, new THREE.MeshPhysicalMaterial({ color: 0x998866, metalness: 0.0, roughness: 0.0, transparent: true, opacity: 0.1 }));
+  m.position.set((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 2);
+  m.userData = { vy: 0.002 + Math.random() * 0.004, vx: (Math.random() - 0.5) * 0.002, phase: Math.random() * Math.PI * 2 };
   scene.add(m);
   bubbles.push(m);
 }
 
-// ── Sparkles ──
-const sparkleCount = 80;
-const sparkles = [];
-for (let i = 0; i < sparkleCount; i++) {
-  const s = 0.002 + Math.random() * 0.008;
-  const g = new THREE.SphereGeometry(s, 4, 4);
-  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
-    color: new THREE.Color().setHSL(0.08 + Math.random() * 0.1, 0.6, 0.5 + Math.random() * 0.4),
-    transparent: true,
-    opacity: 0.4 + Math.random() * 0.6
-  }));
-  m.position.set(
-    (Math.random() - 0.5) * 4,
-    (Math.random() - 0.5) * 5,
-    (Math.random() - 0.5) * 3 - 1
-  );
-  m.userData = {
-    speed: 0.2 + Math.random() * 0.5,
-    phase: Math.random() * Math.PI * 2
-  };
-  scene.add(m);
-  sparkles.push(m);
+// Mouse
+let mx = 0, my = 0, trx = 0, tryy = 0;
+document.addEventListener('mousemove', (e) => {
+  mx = (e.clientX / window.innerWidth) * 2 - 1;
+  my = (e.clientY / window.innerHeight) * 2 - 1;
+});
+
+function resizeCanvas() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  const nw = r.width, nh = r.height;
+  if (nw !== canvas.width || nh !== canvas.height) {
+    canvas.width = nw; canvas.height = nh;
+    camera.aspect = nw / nh;
+    camera.updateProjectionMatrix();
+    renderer.setSize(nw, nh);
+  }
 }
 
-// ── Mouse Parallax ──
-let mouseX = 0, mouseY = 0;
-let targetRotX = 0, targetRotY = 0;
-document.addEventListener('mousemove', (e) => {
-  mouseX = (e.clientX / window.innerWidth) * 2 - 1;
-  mouseY = (e.clientY / window.innerHeight) * 2 - 1;
-});
-
-// ── Resize ──
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// ── Animate ──
 const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
+  resizeCanvas();
   const t = clock.getElapsedTime();
+  trx += (my * 0.1 - trx) * 0.02;
+  tryy += (mx * 0.15 - tryy) * 0.02;
+  glassGroup.rotation.x = trx + Math.sin(t * 0.3) * 0.02;
+  glassGroup.rotation.y = tryy + Math.sin(t * 0.15) * 0.015;
+  glassGroup.position.y = 0.15 + Math.sin(t * 0.35) * 0.03;
+  liquidMat.opacity = 0.5 + Math.sin(t * 0.5) * 0.08;
+  surface.material.opacity = 0.18 + Math.sin(t * 0.4) * 0.04;
 
-  // Glass gentle float + rotation
-  targetRotX += (mouseY * 0.15 - targetRotX) * 0.02;
-  targetRotY += (mouseX * 0.2 - targetRotY) * 0.02;
-  glassGroup.rotation.x = targetRotX + Math.sin(t * 0.3) * 0.015;
-  glassGroup.rotation.y = targetRotY + Math.sin(t * 0.2) * 0.02;
-  glassGroup.position.y = 0.2 + Math.sin(t * 0.4) * 0.04;
-
-  // Liquid animation
-  const op = 0.5 + Math.sin(t * 0.6) * 0.08;
-  liquidMat.opacity = op;
-  surface.material.opacity = 0.2 + Math.sin(t * 0.5) * 0.05;
-
-  // Bubbles
   bubbles.forEach(b => {
     b.position.y += b.userData.vy;
     b.position.x += b.userData.vx * Math.sin(t + b.userData.phase);
-    b.material.opacity = 0.08 + Math.sin(t * 0.5 + b.userData.phase) * 0.06;
-    if (b.position.y > 2) {
-      b.position.y = -1.5;
-      b.position.x = (Math.random() - 0.5) * 2.5;
-      b.position.z = (Math.random() - 0.5) * 2.5 - 0.3;
+    b.material.opacity = 0.06 + Math.sin(t * 0.5 + b.userData.phase) * 0.05;
+    if (b.position.y > 1.8) {
+      b.position.y = -1.2;
+      b.position.x = (Math.random() - 0.5) * 2;
+      b.position.z = (Math.random() - 0.5) * 2;
     }
   });
-
-  // Sparkles
-  sparkles.forEach(s => {
-    s.material.opacity = 0.2 + Math.sin(t * s.userData.speed + s.userData.phase) * 0.6;
-    const sc = 0.8 + Math.sin(t * s.userData.speed + s.userData.phase) * 0.4;
-    s.scale.set(sc, sc, sc);
-  });
-
-  camera.position.x = Math.sin(t * 0.05) * 0.2;
-  camera.lookAt(0, 0.5, 0);
 
   renderer.render(scene, camera);
 }
 animate();
 
 // ── App Logic ──
-const queryInp = document.getElementById('query');
-const searchBtn = document.getElementById('searchBtn');
-const errorBar = document.getElementById('errorBar');
-const emptyState = document.getElementById('emptyState');
-const loading = document.getElementById('loading');
-const results = document.getElementById('results');
+const qi = document.getElementById('query');
+const sb = document.getElementById('searchBtn');
+const eb = document.getElementById('errorBar');
+const es = document.getElementById('emptyState');
+const ld = document.getElementById('loading');
+const rs = document.getElementById('results');
 
-function setQ(val) { queryInp.value = val; search(); }
-
+function setQ(v) { qi.value = v; search(); }
 async function search() {
-  const q = queryInp.value.trim();
+  const q = qi.value.trim();
   if (!q) return;
-  emptyState.style.display = 'none';
-  results.style.display = 'none';
-  errorBar.style.display = 'none';
-  loading.style.display = 'block';
-  searchBtn.disabled = true;
-
+  es.style.display = 'none';
+  rs.style.display = 'none';
+  eb.style.display = 'none';
+  ld.style.display = 'block';
+  sb.disabled = true;
   try {
-    const isRandom = q === 'random';
-    const url = isRandom
-      ? 'https://www.thecocktaildb.com/api/json/v1/1/random.php'
-      : `https://www.thecocktaildb.com/api/json/v1/1/search.php?s=${encodeURIComponent(q)}`;
+    const rnd = q === 'random';
+    const url = rnd ? 'https://www.thecocktaildb.com/api/json/v1/1/random.php' : `https://www.thecocktaildb.com/api/json/v1/1/search.php?s=${encodeURIComponent(q)}`;
     const res = await fetch(url);
     const data = await res.json();
-
-    loading.style.display = 'none';
-    searchBtn.disabled = false;
-
+    ld.style.display = 'none';
+    sb.disabled = false;
     if (!data.drinks) {
-      const byIng = await fetch(`https://www.thecocktaildb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(q)}`);
-      const ingData = await byIng.json();
-      if (ingData.drinks) {
-        const details = await Promise.all(ingData.drinks.slice(0, 6).map(async d => {
+      const bi = await fetch(`https://www.thecocktaildb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(q)}`);
+      const id = await bi.json();
+      if (id.drinks) {
+        const dt = await Promise.all(id.drinks.slice(0, 6).map(async d => {
           const r = await fetch(`https://www.thecocktaildb.com/api/json/v1/1/lookup.php?i=${d.idDrink}`);
           return (await r.json()).drinks[0];
         }));
-        renderDrinks(details);
+        render(dt);
       } else {
-        errorBar.textContent = `No cocktails found for "${q}". Try gin, rum, vodka, tequila, or a name like margarita.`;
-        errorBar.style.display = 'block';
+        eb.textContent = `Nothing found for "${q}". Try gin, rum, vodka, tequila, or a name like margarita.`;
+        eb.style.display = 'block';
       }
       return;
     }
-    renderDrinks(data.drinks);
-  } catch (e) {
-    loading.style.display = 'none';
-    searchBtn.disabled = false;
-    errorBar.textContent = 'Something went wrong. Check your connection.';
-    errorBar.style.display = 'block';
+    render(data.drinks);
+  } catch (_) {
+    ld.style.display = 'none';
+    sb.disabled = false;
+    eb.textContent = 'Something went wrong. Check your connection.';
+    eb.style.display = 'block';
   }
 }
-
-function renderDrinks(drinks) {
-  const single = drinks.length === 1;
-  results.className = single ? 'results single-result' : 'results grid';
-  results.innerHTML = drinks.map(d => {
+function render(drinks) {
+  const s = drinks.length === 1;
+  rs.className = s ? 'results single-result' : 'results grid';
+  rs.innerHTML = drinks.map(d => {
     const ings = [];
     for (let i = 1; i <= 15; i++) {
-      const ing = d[`strIngredient${i}`];
-      const meas = d[`strMeasure${i}`];
+      const ing = d[`strIngredient${i}`], meas = d[`strMeasure${i}`];
       if (ing) ings.push(`${meas ? meas.trim() + ' ' : ''}${ing}`);
     }
-    return `
-      <div class="drink-card">
+    return `<div class="drink-card">
+      <div class="dc-img-wrap">
         <img class="dc-img" src="${d.strDrinkThumb}/preview" alt="${d.strDrink}" loading="lazy">
-        <div class="dc-body">
-          <div class="dc-name">${d.strDrink}</div>
-          <div class="dc-cat">${d.strCategory || ''}${d.strAlcoholic ? ' · ' + d.strAlcoholic : ''}</div>
-          <div class="dc-ing"><strong>🧪</strong> ${ings.join(', ')}</div>
-          <div class="dc-instr">${d.strInstructions}</div>
-          <div class="dc-glass"> ${d.strGlass}</div>
+      </div>
+      <div class="dc-body">
+        <div class="dc-name">${d.strDrink}</div>
+        <div class="dc-cat">${d.strCategory || ''}${d.strAlcoholic ? ' &middot; ' + d.strAlcoholic : ''}</div>
+        <div class="dc-ing"><strong>&#x1F9EA;</strong> ${ings.join(', ')}</div>
+        <div class="dc-instr">${d.strInstructions}</div>
+        <div class="dc-foot">
+          <span class="dc-glass">${d.strGlass}</span>
         </div>
-      </div>`;
+      </div>
+    </div>`;
   }).join('');
-  results.style.display = '';
+  rs.style.display = '';
 }
-
 function downloadMCP() {
   const code = `// Cocktail MCP Server — run: node server.js
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-
 const server = new Server({ name: "cocktail-mcp", version: "1.0.0" }, { capabilities: { tools: {} } });
-
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [{
     name: "search_cocktail",
-    description: "Search for cocktails by ingredient or drink name.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Ingredient (gin, vodka, rum) or cocktail name (margarita, mojito)" }
-      },
-      required: ["query"]
-    }
+    description: "Search for cocktails by ingredient or name.",
+    inputSchema: { type: "object", properties: { query: { type: "string", description: "Ingredient or cocktail name" } }, required: ["query"] }
   }]
 }));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const query = request.params.arguments?.query;
-  if (!query) throw new Error("query is required");
-  const url = \`https://www.thecocktaildb.com/api/json/v1/1/search.php?s=\${encodeURIComponent(query)}\`;
+server.setRequestHandler(CallToolRequestSchema, async (req) => {
+  const q = req.params.arguments?.query;
+  if (!q) throw new Error("query is required");
+  const url = \`https://www.thecocktaildb.com/api/json/v1/1/search.php?s=\${encodeURIComponent(q)}\`;
   const res = await fetch(url);
   const data = await res.json();
   if (!data.drinks) return { content: [{ type: "text", text: "No cocktails found." }] };
   const drinks = data.drinks.map(d => {
     const ingredients = [];
-    for (let i = 1; i <= 15; i++) {
-      if (d[\`strIngredient\${i}\`])
-        ingredients.push({ ingredient: d[\`strIngredient\${i}\`], measure: d[\`strMeasure\${i}\`] || "" });
-    }
+    for (let i = 1; i <= 15; i++) if (d[\`strIngredient\${i}\`]) ingredients.push({ ingredient: d[\`strIngredient\${i}\`], measure: d[\`strMeasure\${i}\`] || "" });
     return { name: d.strDrink, category: d.strCategory, glass: d.strGlass, instructions: d.strInstructions, ingredients, alcoholic: d.strAlcoholic, thumbnail: d.strDrinkThumb };
   });
   return { content: [{ type: "text", text: JSON.stringify(drinks, null, 2) }] };
 });
-
-const transport = new StdioServerTransport();
-await server.connect(transport);`;
-
-  const blob = new Blob([code], { type: "text/javascript" });
+const t = new StdioServerTransport();
+await server.connect(t);`;
+  const b = new Blob([code], { type: "text/javascript" });
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
+  a.href = URL.createObjectURL(b);
   a.download = "cocktail-mcp-server.js";
   a.click();
   URL.revokeObjectURL(a.href);
 }
-
-// Random cocktail on load
-setTimeout(() => setQ('random'), 600);
 </script>
 </body>
 </html>
